@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 # ------------------------------------------------------------------
 # Change this URL to the EPG source you want to test
 # ------------------------------------------------------------------
-EPG_URL = "YOUR_EPG_URL_HERE"
+EPG_URL = "https://iptv-epg.org/files/epg-gb.xml.gz"
 
 DOWNLOAD = "guide.xml.gz"
 OUTPUT = "epg.xml"
