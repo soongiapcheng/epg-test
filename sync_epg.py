@@ -2,7 +2,7 @@ import gzip
 import urllib.request
 import xml.etree.ElementTree as ET
 
-EPG_URL = "https://iptv-org.github.io/epg/guides/sg/singtel.com.xml.gz"
+EPG_URL = "https://iptv-epg.org/files/epg-gb.xml.gz"
 
 DOWNLOAD = "guide.xml.gz"
 OUTPUT = "epg.xml"
