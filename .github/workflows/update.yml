@@ -8,15 +8,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v6
-      with:
-        python-version: "3.12"
+      - name: Show repository files
+        run: |
+          echo "Current directory:"
+          pwd
+          echo ""
+          echo "Repository contents:"
+          ls -lah
+          echo ""
+          echo "Recursive listing:"
+          ls -R
 
-    - run: python sync_epg.py
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: epg
-        path: epg.xml
+      - name: Verify Python
+        run: |
+          python --version
+
+      - name: Run sync_epg.py
+        run: |
+          python sync_epg.py
+
+      - name: Show generated files
+        if: always()
+        run: |
+          echo "Current directory:"
+          pwd
+          echo ""
+          echo "All files:"
+          ls -lah
+          echo ""
+          echo "XML files:"
+          find . -name "*.xml"
+          echo ""
+          echo "GZ files:"
+          find . -name "*.gz"
+          echo ""
+          echo "File sizes:"
+          find . -type f \( -name "*.xml" -o -name "*.gz" \) -exec ls -lh {} \;
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: epg
+          path: |
+            *.xml
+            *.gz
+          if-no-files-found: warn
