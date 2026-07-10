@@ -1,54 +1,153 @@
+#!/usr/bin/env python3
+
 import gzip
+import os
+import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 
-EPG_URL = "https://iptv-epg.org/files/epg-gb.xml.gz"
+# ------------------------------------------------------------------
+# Change this URL to the EPG source you want to test
+# ------------------------------------------------------------------
+EPG_URL = "YOUR_EPG_URL_HERE"
 
 DOWNLOAD = "guide.xml.gz"
 OUTPUT = "epg.xml"
+WANTED = "wanted_channels.txt"
 
-print("Downloading EPG...")
-urllib.request.urlretrieve(EPG_URL, DOWNLOAD)
+print("=" * 60)
+print("Simple GitHub EPG Test")
+print("=" * 60)
 
-print("Extracting...")
-with gzip.open(DOWNLOAD, "rb") as f:
-    data = f.read()
+print(f"Current directory : {os.getcwd()}")
+print(f"Python version    : {sys.version}")
+print()
 
-root = ET.fromstring(data)
+# -------------------------------------------------------------
+# Download
+# -------------------------------------------------------------
+print(f"Downloading:\n{EPG_URL}")
 
+try:
+    urllib.request.urlretrieve(EPG_URL, DOWNLOAD)
+except Exception as e:
+    print("\nERROR downloading file:")
+    print(e)
+    sys.exit(1)
+
+print("Download completed.")
+
+if not os.path.exists(DOWNLOAD):
+    print("Downloaded file not found!")
+    sys.exit(1)
+
+print(f"Downloaded size: {os.path.getsize(DOWNLOAD):,} bytes")
+print()
+
+# -------------------------------------------------------------
+# Read wanted channels
+# -------------------------------------------------------------
 wanted = set()
 
-with open("wanted_channels.txt", encoding="utf-8") as f:
-    for line in f:
-        name = line.strip()
-        if name:
-            wanted.add(name)
+if os.path.exists(WANTED):
+    with open(WANTED, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                wanted.add(line)
+
+print(f"Wanted channels: {len(wanted)}")
+print()
+
+# -------------------------------------------------------------
+# Extract XML
+# -------------------------------------------------------------
+print("Extracting XML...")
+
+try:
+    with gzip.open(DOWNLOAD, "rb") as f:
+        xml_data = f.read()
+except Exception as e:
+    print("Cannot extract gzip:")
+    print(e)
+    sys.exit(1)
+
+print(f"Extracted XML size: {len(xml_data):,} bytes")
+print()
+
+# -------------------------------------------------------------
+# Parse XML
+# -------------------------------------------------------------
+print("Parsing XML...")
+
+try:
+    root = ET.fromstring(xml_data)
+except Exception as e:
+    print("XML parse error:")
+    print(e)
+    sys.exit(1)
+
+print("XML parsed successfully.")
+print()
+
+# -------------------------------------------------------------
+# Count channels
+# -------------------------------------------------------------
+all_channels = root.findall("channel")
+all_programmes = root.findall("programme")
+
+print(f"Total channels   : {len(all_channels)}")
+print(f"Total programmes : {len(all_programmes)}")
+print()
+
+# -------------------------------------------------------------
+# Filter channels
+# -------------------------------------------------------------
+new_root = ET.Element("tv")
 
 channel_ids = set()
 
-new_root = ET.Element("tv")
+for ch in all_channels:
+    names = []
 
-for ch in root.findall("channel"):
-    names = [
-        d.text.strip()
-        for d in ch.findall("display-name")
-        if d.text
-    ]
+    for d in ch.findall("display-name"):
+        if d.text:
+            names.append(d.text.strip())
 
-    if any(n in wanted for n in names):
+    if not wanted:
+        new_root.append(ch)
+        channel_ids.add(ch.attrib["id"])
+    elif any(name in wanted for name in names):
         new_root.append(ch)
         channel_ids.add(ch.attrib["id"])
 
-count = 0
+print(f"Matched channels : {len(channel_ids)}")
 
-for prog in root.findall("programme"):
-    if prog.attrib["channel"] in channel_ids:
+programme_count = 0
+
+for prog in all_programmes:
+    if prog.attrib.get("channel") in channel_ids:
         new_root.append(prog)
-        count += 1
+        programme_count += 1
+
+print(f"Matched programmes : {programme_count}")
+print()
+
+# -------------------------------------------------------------
+# Save XML
+# -------------------------------------------------------------
+print(f"Saving to {OUTPUT}")
 
 tree = ET.ElementTree(new_root)
 tree.write(OUTPUT, encoding="utf-8", xml_declaration=True)
 
-print("Channels:", len(channel_ids))
-print("Programmes:", count)
-print("Done!")
+if os.path.exists(OUTPUT):
+    print("Output created successfully.")
+    print(f"Output size: {os.path.getsize(OUTPUT):,} bytes")
+else:
+    print("Output file was NOT created!")
+
+print()
+print("=" * 60)
+print("Finished")
+print("=" * 60)
