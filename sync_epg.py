@@ -7,7 +7,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 # ------------------------------------------------------------------
-# Change this URL to the EPG source you want to test
+# EPG URL
 # ------------------------------------------------------------------
 EPG_URL = "https://iptv-epg.org/files/epg-gb.xml.gz"
 
@@ -47,16 +47,18 @@ print()
 # -------------------------------------------------------------
 # Read wanted channels
 # -------------------------------------------------------------
-wanted = set()
+wanted = []
 
 if os.path.exists(WANTED):
     with open(WANTED, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
-                wanted.add(line)
+                wanted.append(line)
 
-print(f"Wanted channels: {len(wanted)}")
+print("Wanted keywords:")
+for w in wanted:
+    print("  -", w)
 print()
 
 # -------------------------------------------------------------
@@ -90,9 +92,6 @@ except Exception as e:
 print("XML parsed successfully.")
 print()
 
-# -------------------------------------------------------------
-# Count channels
-# -------------------------------------------------------------
 all_channels = root.findall("channel")
 all_programmes = root.findall("programme")
 
@@ -103,26 +102,52 @@ print()
 # -------------------------------------------------------------
 # Filter channels
 # -------------------------------------------------------------
-new_root = ET.Element("tv")
+print("Searching for matching channels...")
+print()
 
+new_root = ET.Element("tv")
 channel_ids = set()
 
 for ch in all_channels:
-    names = []
 
-    for d in ch.findall("display-name"):
-        if d.text:
-            names.append(d.text.strip())
+    names = [
+        d.text.strip()
+        for d in ch.findall("display-name")
+        if d.text
+    ]
+
+    matched = False
 
     if not wanted:
-        new_root.append(ch)
-        channel_ids.add(ch.attrib["id"])
-    elif any(name in wanted for name in names):
+        matched = True
+
+    else:
+        for display_name in names:
+            for keyword in wanted:
+                if keyword.lower() in display_name.lower():
+                    matched = True
+                    break
+            if matched:
+                break
+
+    if matched:
         new_root.append(ch)
         channel_ids.add(ch.attrib["id"])
 
+        print(f"Matched: {ch.attrib['id']}")
+
+        for n in names:
+            print(f"   {n}")
+
+        print()
+
+print("-" * 60)
 print(f"Matched channels : {len(channel_ids)}")
+print()
 
+# -------------------------------------------------------------
+# Copy programmes
+# -------------------------------------------------------------
 programme_count = 0
 
 for prog in all_programmes:
@@ -136,7 +161,7 @@ print()
 # -------------------------------------------------------------
 # Save XML
 # -------------------------------------------------------------
-print(f"Saving to {OUTPUT}")
+print(f"Saving {OUTPUT}")
 
 tree = ET.ElementTree(new_root)
 tree.write(OUTPUT, encoding="utf-8", xml_declaration=True)
